@@ -67,10 +67,21 @@ fn detect_format<P: AsRef<Path>>(path: P) -> ConfigGuardResult<ConfigFormat> {
     match extension.as_deref() {
         Some("yaml") | Some("yml") => Ok(ConfigFormat::Yaml),
         Some("json") => Ok(ConfigFormat::Json),
-        None => Err(ConfigGuardError::UnsupportedFormat {
-            path: path.as_ref().display().to_string(),
-            extension: "no extension".to_string(),
-        }),
+        None => {
+            // Try to infer format from file content for files without extensions
+            if let Ok(content) = fs::read_to_string(path.as_ref()) {
+                if content.trim().starts_with('{') && content.trim().ends_with('}') {
+                    return Ok(ConfigFormat::Json);
+                } else if content.contains(':') && !content.contains('{') {
+                    return Ok(ConfigFormat::Yaml);
+                }
+            }
+            
+            Err(ConfigGuardError::UnsupportedFormat {
+                path: path.as_ref().display().to_string(),
+                extension: "no extension".to_string(),
+            })
+        },
         Some(ext) => Err(ConfigGuardError::UnsupportedFormat {
             path: path.as_ref().display().to_string(),
             extension: ext.to_string(),

@@ -86,13 +86,26 @@ impl Schema {
             _ => ConfigGuardError::IO(e.to_string()),
         })?;
 
-        let root: SchemaRule = serde_yaml::from_str(&file_content).map_err(|e| {
-            ConfigGuardError::Schema(format!(
-                "Failed to parse schema YAML from {}: {}",
-                path.display(),
-                e
-            ))
-        })?;
+        let root: SchemaRule = match serde_yaml::from_str(&file_content) {
+            Ok(rule) => rule,
+            Err(e) => {
+                // Provide more detailed error information for schema parsing failures
+                let error_msg = if e.to_string().contains("invalid type") {
+                    format!(
+                        "Failed to parse schema YAML from {}: {}. Check that all types are valid (string, integer, float, boolean, object, list, any, null).",
+                        path.display(),
+                        e
+                    )
+                } else {
+                    format!(
+                        "Failed to parse schema YAML from {}: {}",
+                        path.display(),
+                        e
+                    )
+                };
+                return Err(ConfigGuardError::Schema(error_msg));
+            }
+        };
 
         // Validate the schema itself
         Self::validate_schema_rule(&root).map_err(|e| ConfigGuardError::Schema(e.to_string()))?;

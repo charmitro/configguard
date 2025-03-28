@@ -324,10 +324,18 @@ fn process_directory(
         );
     }
 
-    let entries = fs::read_dir(dir).map_err(|e| ConfigGuardError::FileRead {
-        path: dir_path.to_string(),
-        error: e.to_string(),
-    })?;
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            if *output_format == ReportFormat::Text {
+                eprintln!("Error reading directory {}: {}", dir_path, e);
+            }
+            return Err(ConfigGuardError::FileRead {
+                path: dir_path.to_string(),
+                error: e.to_string(),
+            });
+        }
+    };
 
     for entry in entries {
         let entry = entry.map_err(|e| ConfigGuardError::IO(e.to_string()))?;
