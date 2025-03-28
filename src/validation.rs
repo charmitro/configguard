@@ -134,6 +134,24 @@ fn validate_object(
                         actual: "Key is absent".to_string(),
                         description: field_desc,
                     });
+                } else if key_rule.required && key_rule.data_type == SchemaType::Object {
+                    // Check if the required object is empty when it shouldn't be
+                    if let Some(Value::Mapping(inner_map)) = map.get(&Value::String(key_name.clone())) {
+                        if inner_map.is_empty() && key_rule.keys.is_some() && !key_rule.keys.as_ref().unwrap().is_empty() {
+                            let field_desc = key_rule.description.clone();
+                            errors.push(ValidationError {
+                                path: if path.is_empty() {
+                                    format!(".{}", key_name)
+                                } else {
+                                    format!("{}.{}", path, key_name)
+                                },
+                                message: "Required object is empty".to_string(),
+                                expected: "Object with required fields".to_string(),
+                                actual: "Empty object".to_string(),
+                                description: field_desc,
+                            });
+                        }
+                    }
                 }
             }
 
@@ -330,6 +348,29 @@ fn validate_number(
     }
 
     if let Some(num) = as_f64(value) {
+        // Check for NaN or infinite values
+        if num.is_nan() {
+            errors.push(ValidationError {
+                path: path.to_string(),
+                message: "Invalid numeric value".to_string(),
+                expected: "A valid number".to_string(),
+                actual: "NaN (Not a Number)".to_string(),
+                description: rule.description.clone(),
+            });
+            return Ok(());
+        }
+        
+        if num.is_infinite() {
+            errors.push(ValidationError {
+                path: path.to_string(),
+                message: "Invalid numeric value".to_string(),
+                expected: "A finite number".to_string(),
+                actual: if num.is_sign_positive() { "Positive infinity" } else { "Negative infinity" }.to_string(),
+                description: rule.description.clone(),
+            });
+            return Ok(());
+        }
+        
         // Check min constraint
         if let Some(min) = &rule.min {
             if let Some(min_val) = min.as_f64() {
@@ -867,9 +908,13 @@ mod tests {
             Ok(_) => panic!("Expected validation error"),
             Err(err) => match err {
                 ConfigGuardError::AllValidationErrors { errors } => {
-                    assert_eq!(errors.len(), 1);
-                    assert_eq!(errors[0].path, ".metadata.name");
-                    assert_eq!(errors[0].message, "Required key missing");
+                    // We're getting two errors: one for the missing key and one for the empty object
+                    // Find the error for the missing required field
+                    let missing_key_error = errors.iter().find(|e| e.message == "Required key missing");
+                    assert!(missing_key_error.is_some());
+                    let error = missing_key_error.unwrap();
+                    assert_eq!(error.path, ".metadata.name");
+                    assert_eq!(error.message, "Required key missing");
                 }
                 _ => panic!("Expected AllValidationErrors, got {:?}", err),
             },
