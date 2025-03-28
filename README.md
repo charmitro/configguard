@@ -24,6 +24,12 @@ cargo build --release
 
 The binary will be located at `target/release/configguard`.
 
+You can also install this via `cargo install`:
+
+```
+cargo install configguard
+```
+
 ## Usage
 
 ### Basic Validation
