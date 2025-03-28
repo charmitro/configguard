@@ -86,8 +86,13 @@ impl Schema {
             _ => ConfigGuardError::IO(e.to_string()),
         })?;
 
-        let root: SchemaRule = serde_yaml::from_str(&file_content)
-            .map_err(|e| ConfigGuardError::Schema(format!("Failed to parse schema YAML: {}", e)))?;
+        let root: SchemaRule = serde_yaml::from_str(&file_content).map_err(|e| {
+            ConfigGuardError::Schema(format!(
+                "Failed to parse schema YAML from {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         // Validate the schema itself
         Self::validate_schema_rule(&root).map_err(|e| ConfigGuardError::Schema(e.to_string()))?;
@@ -261,8 +266,8 @@ impl Schema {
                     if let (Some(min_num), Some(max_num)) = (min_val, max_val) {
                         if min_num > max_num {
                             return Err(ConfigGuardError::Schema(format!(
-                                "'min' cannot be greater than 'max' {}",
-                                context
+                                "'min' ({}) cannot be greater than 'max' ({}) {}",
+                                min_num, max_num, context
                             )));
                         }
                     } else {

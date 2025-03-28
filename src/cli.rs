@@ -310,6 +310,18 @@ fn process_directory(
 
     if *output_format == ReportFormat::Text {
         println!("Processing directory: {}", dir_path);
+        println!(
+            "Using schema: {}",
+            schema
+                .root
+                .description
+                .as_deref()
+                .unwrap_or("(no description)")
+        );
+        println!(
+            "Strict mode: {}",
+            if strict { "enabled" } else { "disabled" }
+        );
     }
 
     let entries = fs::read_dir(dir).map_err(|e| ConfigGuardError::FileRead {

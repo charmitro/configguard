@@ -149,8 +149,15 @@ fn validate_object(
                             format!("{}.{}", path, key_name)
                         };
 
-                        // Pass down the allow_unknown_keys setting to nested validations
-                        validate_node(val, key_rule, &new_path, errors, allow_unknown_keys)?;
+                        // Pass down the strict mode setting to nested validations
+                        // If we're in strict mode (allow_unknown_keys is false), pass that down
+                        // Otherwise use the key rule's setting
+                        let nested_allow_unknown = if !allow_unknown_keys {
+                            false // Strict mode
+                        } else {
+                            key_rule.allow_unknown_keys
+                        };
+                        validate_node(val, key_rule, &new_path, errors, nested_allow_unknown)?;
                     } else if !allow_unknown_keys {
                         // Report unknown key error if in strict mode
                         errors.push(ValidationError {
@@ -191,6 +198,11 @@ fn validate_list(
                     actual: format!("{} items", items.len()),
                     description: rule.description.clone(),
                 });
+
+                // If the list is empty and items are required, don't try to validate items
+                if items.is_empty() && min_length > 0 {
+                    return Ok(());
+                }
             }
         }
 
@@ -361,11 +373,16 @@ fn validate_number(
                         break;
                     }
                 } else {
-                    // Log a warning for non-numeric enum values when validating numbers
-                    eprintln!(
-                        "Warning: Non-numeric enum value {:?} used in numeric field validation",
-                        enum_val
-                    );
+                    // Add an error for non-numeric enum values when validating numbers
+                    errors.push(ValidationError {
+                        path: path.to_string(),
+                        message: "Invalid enum value type".to_string(),
+                        expected: "Numeric value for numeric field".to_string(),
+                        actual: format!("Non-numeric value: {:?}", enum_val),
+                        description: rule.description.clone(),
+                    });
+                    // Don't continue checking other enum values if we found an invalid type
+                    return Ok(());
                 }
             }
 
