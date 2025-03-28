@@ -97,11 +97,7 @@ impl Schema {
                         e
                     )
                 } else {
-                    format!(
-                        "Failed to parse schema YAML from {}: {}",
-                        path.display(),
-                        e
-                    )
+                    format!("Failed to parse schema YAML from {}: {}", path.display(), e)
                 };
                 return Err(ConfigGuardError::Schema(error_msg));
             }

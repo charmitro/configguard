@@ -20,6 +20,7 @@ pub struct Config {
     pub data: Value,
     pub format: ConfigFormat,
     pub path: Option<PathBuf>,
+    pub content: Option<String>, // Store the original content for line number tracking
 }
 
 impl Config {
@@ -36,6 +37,7 @@ impl Config {
             data,
             format,
             path: None,
+            content: Some(content.to_string()),
         })
     }
 
@@ -51,6 +53,7 @@ impl Config {
 
         let mut config = Self::from_str(&content, format)?;
         config.path = Some(path_ref.to_path_buf());
+        config.content = Some(content);
 
         Ok(config)
     }
@@ -76,12 +79,12 @@ fn detect_format<P: AsRef<Path>>(path: P) -> ConfigGuardResult<ConfigFormat> {
                     return Ok(ConfigFormat::Yaml);
                 }
             }
-            
+
             Err(ConfigGuardError::UnsupportedFormat {
                 path: path.as_ref().display().to_string(),
                 extension: "no extension".to_string(),
             })
-        },
+        }
         Some(ext) => Err(ConfigGuardError::UnsupportedFormat {
             path: path.as_ref().display().to_string(),
             extension: ext.to_string(),

@@ -51,14 +51,26 @@ fn format_text_report(result: &ValidationResult) -> ConfigGuardResult<String> {
             .map_err(|e| ConfigGuardError::IO(e.to_string()))?;
 
             for (i, error) in errors.iter().enumerate() {
-                writeln!(
-                    output,
-                    "{}. Error at path '{}': {}",
-                    i + 1,
-                    error.path,
-                    error.message
-                )
-                .map_err(|e| ConfigGuardError::IO(e.to_string()))?;
+                if let Some(line) = error.line {
+                    writeln!(
+                        output,
+                        "{}. Error at path '{}' (line {}): {}",
+                        i + 1,
+                        error.path,
+                        line,
+                        error.message
+                    )
+                    .map_err(|e| ConfigGuardError::IO(e.to_string()))?;
+                } else {
+                    writeln!(
+                        output,
+                        "{}. Error at path '{}': {}",
+                        i + 1,
+                        error.path,
+                        error.message
+                    )
+                    .map_err(|e| ConfigGuardError::IO(e.to_string()))?;
+                }
 
                 // Include field description if available
                 if let Some(description) = &error.description {
@@ -99,6 +111,7 @@ struct JsonValidationError {
     expected: String,
     actual: String,
     description: Option<String>,
+    line: Option<usize>,
 }
 
 /// Format validation results as a JSON report
@@ -118,6 +131,7 @@ fn format_json_report(result: &ValidationResult) -> ConfigGuardResult<String> {
                     expected: e.expected.clone(),
                     actual: e.actual.clone(),
                     description: e.description.clone(),
+                    line: e.line,
                 })
                 .collect();
 
@@ -156,6 +170,7 @@ mod tests {
                 expected: "Key to be present".to_string(),
                 actual: "Key is absent".to_string(),
                 description: Some("The name of the resource".to_string()),
+                line: None,
             },
             ValidationError {
                 path: ".spec.containers".to_string(),
@@ -163,6 +178,7 @@ mod tests {
                 expected: "At least 1 items".to_string(),
                 actual: "0 items".to_string(),
                 description: None,
+                line: None,
             },
         ];
 
@@ -196,6 +212,7 @@ mod tests {
             expected: "Key to be present".to_string(),
             actual: "Key is absent".to_string(),
             description: Some("The name of the resource".to_string()),
+            line: None,
         }];
 
         let result = ValidationResult::Invalid(errors);
