@@ -67,9 +67,13 @@ fn detect_format<P: AsRef<Path>>(path: P) -> ConfigGuardResult<ConfigFormat> {
     match extension.as_deref() {
         Some("yaml") | Some("yml") => Ok(ConfigFormat::Yaml),
         Some("json") => Ok(ConfigFormat::Json),
-        _ => Err(ConfigGuardError::UnsupportedFormat {
+        None => Err(ConfigGuardError::UnsupportedFormat {
             path: path.as_ref().display().to_string(),
-            extension: extension.unwrap_or_default(),
+            extension: "no extension".to_string(),
+        }),
+        Some(ext) => Err(ConfigGuardError::UnsupportedFormat {
+            path: path.as_ref().display().to_string(),
+            extension: ext.to_string(),
         }),
     }
 }

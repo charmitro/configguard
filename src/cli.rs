@@ -337,13 +337,13 @@ fn process_directory(
                                     println!("✅ {}: Valid", path_str);
                                 }
                             } else if *output_format == ReportFormat::Text {
-                                println!("❌ {}: Invalid", path_str);
+                                eprintln!("❌ {}: Invalid", path_str);
                             }
                         }
                         Err(err) => {
                             processed += 1;
                             if *output_format == ReportFormat::Text {
-                                println!("❌ {}: Error - {}", path_str, err);
+                                eprintln!("❌ {}: Error - {}", path_str, err);
                             }
                         }
                     }

@@ -254,10 +254,21 @@ impl Schema {
 
                 // Validate min/max relationship if both are specified
                 if let (Some(min), Some(max)) = (&rule.min, &rule.max) {
-                    if min.as_f64().unwrap_or(0.0) > max.as_f64().unwrap_or(0.0) {
+                    // Safely extract numeric values for comparison
+                    let min_val = min.as_f64();
+                    let max_val = max.as_f64();
+
+                    if let (Some(min_num), Some(max_num)) = (min_val, max_val) {
+                        if min_num > max_num {
+                            return Err(ConfigGuardError::Schema(format!(
+                                "'min' cannot be greater than 'max' {}",
+                                context
+                            )));
+                        }
+                    } else {
                         return Err(ConfigGuardError::Schema(format!(
-                            "'min' cannot be greater than 'max' {}",
-                            context
+                            "Non-numeric values used for 'min'/'max' in schema {} - min: {:?}, max: {:?}",
+                            context, min, max
                         )));
                     }
                 }

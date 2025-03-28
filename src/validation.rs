@@ -61,6 +61,7 @@ fn validate_node(
     strict: bool,
 ) -> ConfigGuardResult<()> {
     // Adjust allow_unknown_keys based on strict mode
+    // In strict mode, we don't allow unknown keys regardless of the schema setting
     let allow_unknown_keys = if strict {
         false
     } else {
@@ -148,6 +149,7 @@ fn validate_object(
                             format!("{}.{}", path, key_name)
                         };
 
+                        // Pass down the allow_unknown_keys setting to nested validations
                         validate_node(val, key_rule, &new_path, errors, allow_unknown_keys)?;
                     } else if !allow_unknown_keys {
                         // Report unknown key error if in strict mode
@@ -319,6 +321,7 @@ fn validate_number(
         // Check min constraint
         if let Some(min) = &rule.min {
             if let Some(min_val) = min.as_f64() {
+                // Use <= for inclusive minimum check
                 if num < min_val {
                     errors.push(ValidationError {
                         path: path.to_string(),
@@ -352,10 +355,17 @@ fn validate_number(
 
             for enum_val in enum_values {
                 if let Some(enum_num) = as_f64(enum_val) {
-                    if (num - enum_num).abs() < f64::EPSILON {
+                    // More robust floating-point comparison
+                    if (num - enum_num).abs() <= f64::EPSILON {
                         found = true;
                         break;
                     }
+                } else {
+                    // Log a warning for non-numeric enum values when validating numbers
+                    eprintln!(
+                        "Warning: Non-numeric enum value {:?} used in numeric field validation",
+                        enum_val
+                    );
                 }
             }
 
