@@ -39,7 +39,8 @@ fn main() {
                                     "message": e.message,
                                     "expected": e.expected,
                                     "actual": e.actual,
-                                    "description": e.description
+                                    "description": e.description,
+                                    "line": e.line
                                 })
                             })
                             .collect();
@@ -85,12 +86,22 @@ fn main() {
                     // Print all validation errors in text format
                     eprintln!("Error: {} validation errors found:", errors.len());
                     for (i, error) in errors.iter().enumerate() {
-                        eprintln!(
-                            "{}. Error at path '{}': {}",
-                            i + 1,
-                            error.path,
-                            error.message
-                        );
+                        if let Some(line) = error.line {
+                            eprintln!(
+                                "{}. Error at path '{}' (line {}): {}",
+                                i + 1,
+                                error.path,
+                                line,
+                                error.message
+                            );
+                        } else {
+                            eprintln!(
+                                "{}. Error at path '{}': {}",
+                                i + 1,
+                                error.path,
+                                error.message
+                            );
+                        }
                         eprintln!("   Expected: {}", error.expected);
                         eprintln!("   Found: {}", error.actual);
                         if let Some(desc) = &error.description {

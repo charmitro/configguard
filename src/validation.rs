@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, ConfigFormat};
 use crate::error::{ConfigGuardError, ConfigGuardResult};
 use crate::schema::{Schema, SchemaRule, SchemaType};
 use regex::Regex;
@@ -21,6 +21,9 @@ pub struct ValidationError {
 
     /// Field description from schema (if available)
     pub description: Option<String>,
+
+    /// Line number in the source file (if available)
+    pub line: Option<usize>,
 }
 
 /// Result of a validation operation
@@ -44,11 +47,79 @@ pub fn validate(
 
     validate_node(&config.data, &schema.root, "", &mut errors, strict)?;
 
+    // If we have the original content, try to find line numbers for each error
+    if let Some(content) = &config.content {
+        find_line_numbers(content, &mut errors, config.format);
+    }
+
     if errors.is_empty() {
         Ok(ValidationResult::Valid)
     } else {
         // Always return all errors using the AllValidationErrors type
         Err(ConfigGuardError::AllValidationErrors { errors })
+    }
+}
+
+/// Find line numbers for validation errors based on the path
+fn find_line_numbers(content: &str, errors: &mut [ValidationError], format: ConfigFormat) {
+    // Create a map of paths to line numbers
+    let mut path_to_line = std::collections::HashMap::new();
+
+    let lines: Vec<&str> = content.lines().collect();
+
+    match format {
+        ConfigFormat::Yaml => {
+            // For YAML, we look for keys that match our paths
+            for (i, line) in lines.iter().enumerate() {
+                let trimmed = line.trim();
+                if let Some(key) = trimmed.split(':').next() {
+                    let key = key.trim();
+                    if !key.is_empty() && !key.starts_with('#') {
+                        // Store both the simple key and potential path components
+                        path_to_line.insert(key.to_string(), i + 1);
+
+                        // Also try to match array indices like [0]
+                        if key.ends_with(']') {
+                            if let Some(base_key) = key.split('[').next() {
+                                path_to_line.insert(base_key.to_string(), i + 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ConfigFormat::Json => {
+            // For JSON, we need a more sophisticated approach
+            // This is a simplified version that looks for key patterns
+            for (i, line) in lines.iter().enumerate() {
+                let trimmed = line.trim();
+                if trimmed.contains('"') && trimmed.contains(':') {
+                    if let Some(key) = trimmed.split(':').next() {
+                        let key = key.trim().trim_matches('"').trim_matches('"');
+                        if !key.is_empty() {
+                            path_to_line.insert(key.to_string(), i + 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update each error with its line number if we can find it
+    for error in errors {
+        // Extract the last component of the path
+        if let Some(last_component) = error.path.split('.').last() {
+            // Remove array indices for matching
+            let clean_component = if last_component.contains('[') {
+                last_component.split('[').next().unwrap_or(last_component)
+            } else {
+                last_component
+            };
+
+            if let Some(&line) = path_to_line.get(clean_component) {
+                error.line = Some(line);
+            }
+        }
     }
 }
 
@@ -76,6 +147,7 @@ fn validate_node(
             expected: format!("{:?}", rule.data_type),
             actual: value_type_name(value),
             description: rule.description.clone(),
+            line: None,
         });
         // Don't proceed with further checks if type doesn't match
         return Ok(());
@@ -133,11 +205,17 @@ fn validate_object(
                         expected: "Key to be present".to_string(),
                         actual: "Key is absent".to_string(),
                         description: field_desc,
+                        line: None,
                     });
                 } else if key_rule.required && key_rule.data_type == SchemaType::Object {
                     // Check if the required object is empty when it shouldn't be
-                    if let Some(Value::Mapping(inner_map)) = map.get(&Value::String(key_name.clone())) {
-                        if inner_map.is_empty() && key_rule.keys.is_some() && !key_rule.keys.as_ref().unwrap().is_empty() {
+                    if let Some(Value::Mapping(inner_map)) =
+                        map.get(&Value::String(key_name.clone()))
+                    {
+                        if inner_map.is_empty()
+                            && key_rule.keys.is_some()
+                            && !key_rule.keys.as_ref().unwrap().is_empty()
+                        {
                             let field_desc = key_rule.description.clone();
                             errors.push(ValidationError {
                                 path: if path.is_empty() {
@@ -149,6 +227,7 @@ fn validate_object(
                                 expected: "Object with required fields".to_string(),
                                 actual: "Empty object".to_string(),
                                 description: field_desc,
+                                line: None,
                             });
                         }
                     }
@@ -188,6 +267,7 @@ fn validate_object(
                             expected: "Key defined in schema".to_string(),
                             actual: "Undefined key".to_string(),
                             description: None,
+                            line: None,
                         });
                     }
                 }
@@ -215,6 +295,7 @@ fn validate_list(
                     expected: format!("At least {} items", min_length),
                     actual: format!("{} items", items.len()),
                     description: rule.description.clone(),
+                    line: None,
                 });
 
                 // If the list is empty and items are required, don't try to validate items
@@ -232,6 +313,7 @@ fn validate_list(
                     expected: format!("At most {} items", max_length),
                     actual: format!("{} items", items.len()),
                     description: rule.description.clone(),
+                    line: None,
                 });
             }
         }
@@ -265,6 +347,7 @@ fn validate_string(
                     expected: format!("At least {} characters", min_length),
                     actual: format!("{} characters", s.len()),
                     description: rule.description.clone(),
+                    line: None,
                 });
             }
         }
@@ -277,6 +360,7 @@ fn validate_string(
                     expected: format!("At most {} characters", max_length),
                     actual: format!("{} characters", s.len()),
                     description: rule.description.clone(),
+                    line: None,
                 });
             }
         }
@@ -294,6 +378,7 @@ fn validate_string(
                     expected: format!("Pattern: {}", pattern),
                     actual: s.clone(),
                     description: rule.description.clone(),
+                    line: None,
                 });
             }
         }
@@ -324,6 +409,7 @@ fn validate_string(
                     expected: format!("One of: {}", allowed_values),
                     actual: s.clone(),
                     description: rule.description.clone(),
+                    line: None,
                 });
             }
         }
@@ -356,21 +442,28 @@ fn validate_number(
                 expected: "A valid number".to_string(),
                 actual: "NaN (Not a Number)".to_string(),
                 description: rule.description.clone(),
+                line: None,
             });
             return Ok(());
         }
-        
+
         if num.is_infinite() {
             errors.push(ValidationError {
                 path: path.to_string(),
                 message: "Invalid numeric value".to_string(),
                 expected: "A finite number".to_string(),
-                actual: if num.is_sign_positive() { "Positive infinity" } else { "Negative infinity" }.to_string(),
+                actual: if num.is_sign_positive() {
+                    "Positive infinity"
+                } else {
+                    "Negative infinity"
+                }
+                .to_string(),
                 description: rule.description.clone(),
+                line: None,
             });
             return Ok(());
         }
-        
+
         // Check min constraint
         if let Some(min) = &rule.min {
             if let Some(min_val) = min.as_f64() {
@@ -382,6 +475,7 @@ fn validate_number(
                         expected: format!("At least {}", min_val),
                         actual: format!("{}", num),
                         description: rule.description.clone(),
+                        line: None,
                     });
                 }
             }
@@ -397,6 +491,7 @@ fn validate_number(
                         expected: format!("At most {}", max_val),
                         actual: format!("{}", num),
                         description: rule.description.clone(),
+                        line: None,
                     });
                 }
             }
@@ -421,6 +516,7 @@ fn validate_number(
                         expected: "Numeric value for numeric field".to_string(),
                         actual: format!("Non-numeric value: {:?}", enum_val),
                         description: rule.description.clone(),
+                        line: None,
                     });
                     // Don't continue checking other enum values if we found an invalid type
                     return Ok(());
@@ -440,6 +536,7 @@ fn validate_number(
                     expected: format!("One of: {}", allowed_values),
                     actual: format!("{}", num),
                     description: rule.description.clone(),
+                    line: None,
                 });
             }
         }
@@ -507,6 +604,7 @@ mod tests {
             data,
             format: ConfigFormat::Yaml,
             path: None,
+            content: Some(yaml.to_string()),
         }
     }
 
@@ -879,6 +977,7 @@ mod tests {
             data: serde_yaml::from_str(valid_nested_config).unwrap(),
             format: ConfigFormat::Yaml,
             path: None,
+            content: Some(valid_nested_config.to_string()),
         };
 
         let result = validate(&config, &schema, false);
@@ -900,6 +999,7 @@ mod tests {
             data: serde_yaml::from_str(invalid_nested_config).unwrap(),
             format: ConfigFormat::Yaml,
             path: None,
+            content: Some(invalid_nested_config.to_string()),
         };
 
         let result = validate(&config, &schema, false);
@@ -910,7 +1010,8 @@ mod tests {
                 ConfigGuardError::AllValidationErrors { errors } => {
                     // We're getting two errors: one for the missing key and one for the empty object
                     // Find the error for the missing required field
-                    let missing_key_error = errors.iter().find(|e| e.message == "Required key missing");
+                    let missing_key_error =
+                        errors.iter().find(|e| e.message == "Required key missing");
                     assert!(missing_key_error.is_some());
                     let error = missing_key_error.unwrap();
                     assert_eq!(error.path, ".metadata.name");
@@ -931,6 +1032,7 @@ mod tests {
             data: serde_yaml::from_str(empty_list_config).unwrap(),
             format: ConfigFormat::Yaml,
             path: None,
+            content: Some(empty_list_config.to_string()),
         };
 
         let result = validate(&config, &schema, false);
