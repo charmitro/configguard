@@ -26,7 +26,13 @@ The binary will be located at `target/release/configguard`.
 
 You can also install this via `cargo install`:
 
+```bash
+cargo install --path .
 ```
+
+Or directly from crates.io:
+
+```bash
 cargo install configguard
 ```
 
@@ -63,6 +69,20 @@ configguard validate config1.yaml config2.yaml --schema schema.yaml
 ```bash
 configguard validate ./configs/ --schema schema.yaml --directory
 ```
+
+### Exit Codes
+
+ConfigGuard uses the following exit codes:
+
+- `0`: Success - All configurations are valid
+- `2`: File not found
+- `3`: File read/write error
+- `4`: Parse error (invalid YAML/JSON)
+- `5`: Unsupported file format
+- `10`: Validation error(s)
+- `11`: Schema error
+- `12`: Pattern error (invalid regex)
+- `20`: CLI error
 
 ## Options
 
@@ -119,6 +139,8 @@ keys:
             name: { type: string, required: true }
             image: { type: string, required: true }
 ```
+
+See the `examples/` directory for more schema examples.
 
 ### Supported Types
 
@@ -205,6 +227,13 @@ For integration with other tools, use JSON output format:
 }
 ```
 
+## Examples
+
+The `examples/` directory contains sample configurations and schemas to help you get started:
+
+- `simple/`: Basic examples for validating individual config files
+- `directory-validation/`: Examples for validating multiple files in a directory
+
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
