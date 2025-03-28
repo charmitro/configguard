@@ -1,0 +1,3 @@
+This is just a text file with some notes.
+It is not a configuration file and should be ignored by the directory validation
+feature when using the default pattern. 

@@ -1,0 +1,25 @@
+apiVersion: v1beta2
+kind: Deployment
+metadata:
+  name: web-app
+  labels:
+    app: frontend
+    tier: web
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.19
+          imagePullPolicy: IfNotPresent
+        - name: sidecar
+          image: proxy:latest
+          imagePullPolicy: Always
+  ports:
+    - name: http
+      containerPort: 80
+      protocol: TCP
+    - name: https
+      containerPort: 443
+      protocol: TCP 

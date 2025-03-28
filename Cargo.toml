@@ -1,0 +1,21 @@
+[package]
+name = "configguard"
+version = "0.1.0"
+edition = "2021"
+description = "A high-performance utility to validate configuration files against a user-defined schema"
+authors = ["ConfigGuard Team"]
+license = "MIT"
+
+[dependencies]
+clap = { version = "4.5.1", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1.0"
+thiserror = "1.0"
+regex = "1.10.2"
+anyhow = "1.0"
+glob = "0.3.1"
+
+[dev-dependencies]
+tempfile = "3.8.0"
+serde_json = "1.0"

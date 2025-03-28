@@ -1,0 +1,13 @@
+apiVersion: v2 # invalid version
+kind: InvalidType # not in enum
+metadata:
+  name: too-long-name-with-many-characters-that-exceeds-the-limit-defined-in-schema
+spec:
+  replicas: -5 # negative value not allowed
+  template:
+    spec:
+      # missing required containers
+  ports:
+    - name: http
+      containerPort: 999999 # port out of range
+      protocol: INVALID # invalid protocol 

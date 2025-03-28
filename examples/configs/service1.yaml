@@ -1,0 +1,19 @@
+apiVersion: v1beta1
+kind: Service
+metadata:
+  name: service-one
+  labels:
+    app: service-one
+    tier: backend
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: api
+          image: api:1.0
+          imagePullPolicy: IfNotPresent
+  ports:
+    - name: http
+      containerPort: 8080
+      protocol: TCP 

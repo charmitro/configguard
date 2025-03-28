@@ -1,0 +1,15 @@
+apiVersion: v2 # invalid version format
+kind: Job # not in allowed enum
+metadata:
+  name: web-app-with-a-very-long-name-that-exceeds-the-maximum-length-defined-in-schema
+  # missing labels object
+spec:
+  replicas: -1 # invalid negative value
+  template:
+    spec:
+      containers: # empty list, but min_length is 1
+      # missing required containers
+  ports:
+    - name: http
+      containerPort: 80000 # port out of range
+      protocol: HTTP # invalid protocol 

@@ -1,0 +1,22 @@
+{
+  "apiVersion": "v2",
+  "kind": "Job",
+  "metadata": {
+    "name": "web-app-with-a-very-long-name-that-exceeds-the-maximum-length-defined-in-schema"
+  },
+  "spec": {
+    "replicas": -1,
+    "template": {
+      "spec": {
+        "containers": []
+      }
+    },
+    "ports": [
+      {
+        "name": "http",
+        "containerPort": 80000,
+        "protocol": "HTTP"
+      }
+    ]
+  }
+} 

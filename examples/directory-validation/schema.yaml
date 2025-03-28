@@ -1,0 +1,65 @@
+# Schema for a simple deployment configuration
+type: object
+description: Root configuration object
+keys:
+  apiVersion:
+    type: string
+    required: true
+    pattern: ^v1(alpha|beta)?\d*$
+    description: The API version string.
+  kind:
+    type: string
+    required: true
+    enum: [Deployment, Service, ConfigMap]
+    description: The type of Kubernetes resource.
+  metadata:
+    type: object
+    required: true
+    keys:
+      name:
+        type: string
+        required: true
+        min_length: 1
+        max_length: 63
+      labels:
+        type: object
+        allow_unknown_keys: true # Allow arbitrary labels
+        keys: # Define known/required labels if any
+          app: { type: string, required: false }
+  spec:
+    type: object
+    required: true
+    keys:
+      replicas:
+        type: integer
+        required: false
+        min: 0
+        description: Number of desired pods.
+      template:
+        type: object
+        required: true
+        keys:
+          spec:
+            type: object
+            required: true
+            keys:
+              containers:
+                type: list
+                required: true
+                min_length: 1
+                items:
+                  type: object
+                  keys:
+                    name: { type: string, required: true }
+                    image: { type: string, required: true }
+                    imagePullPolicy: { type: string, enum: [Always, IfNotPresent, Never] }
+      ports:
+        type: list
+        required: false
+        min_length: 1
+        items:
+          type: object
+          keys:
+            name: { type: string, required: true }
+            containerPort: { type: integer, required: true, min: 1, max: 65535 }
+            protocol: { type: string, enum: [TCP, UDP, SCTP] } 

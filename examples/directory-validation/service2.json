@@ -1,0 +1,32 @@
+{
+  "apiVersion": "v1beta1",
+  "kind": "Service",
+  "metadata": {
+    "name": "service-two",
+    "labels": {
+      "app": "service-two",
+      "tier": "frontend"
+    }
+  },
+  "spec": {
+    "replicas": 3,
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "web",
+            "image": "web:2.0",
+            "imagePullPolicy": "Always"
+          }
+        ]
+      }
+    },
+    "ports": [
+      {
+        "name": "http",
+        "containerPort": 80,
+        "protocol": "TCP"
+      }
+    ]
+  }
+} 
