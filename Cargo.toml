@@ -3,7 +3,7 @@ name = "configguard"
 version = "0.1.0"
 edition = "2021"
 description = "A high-performance utility to validate configuration files against a user-defined schema"
-authors = ["ConfigGuard Team"]
+authors = ["Charalampos Mitrodimas <charmitro@posteo.net>"]
 license = "MIT"
 
 [dependencies]
